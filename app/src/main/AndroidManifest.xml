@@ -2,9 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="app.doggy.cameraxapp">
 
-    <!-- Adding android.hardware.camera.any makes sure that the device has a camera.
-         Specifying .any means that it can be a front camera or a back camera. -->
+    <!-- デバイスにカメラが搭載されていることを確認．-->
+    <!-- .anyを指定するとフロントカメラでもバックカメラでもよいことになる．-->
+    <!-- .anyを指定しないとバックカメラのない端末では動作しない．-->
     <uses-feature android:name="android.hardware.camera.any" />
+
+    <!-- カメラにアクセスするためのパーミッション．-->
     <uses-permission android:name="android.permission.CAMERA" />
 
     <application

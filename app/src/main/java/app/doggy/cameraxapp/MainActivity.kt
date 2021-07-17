@@ -56,8 +56,8 @@ class MainActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        // requestCodeが正しいか確認する．
-        // そうでなければ無視する．
+
+        // requestCodeが正しければ確認する．
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
                 startCamera()
@@ -69,6 +69,7 @@ class MainActivity : AppCompatActivity() {
                 ).show()
                 finish()
             }
+
         }
     }
 
