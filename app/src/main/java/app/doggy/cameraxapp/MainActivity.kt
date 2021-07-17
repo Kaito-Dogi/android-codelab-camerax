@@ -2,18 +2,22 @@ package app.doggy.cameraxapp
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import app.doggy.cameraxapp.databinding.ActivityMainBinding
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -73,7 +77,42 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun takePhoto() {}
+    private fun takePhoto() {
+
+        // ImageCaptureユースケースへの参照を取得．
+        // ユースケースがnullの場合はこの関数から抜け出す．
+        // imageCaptureが設定される前に写真ボタンをタップした場合にnullになる．
+        // nullの場合は，return文が無いとアプリがクラッシュする．
+        val imageCapture = imageCapture ?: return
+
+        // 画像を格納するファイルを作成．
+        // ファイル名が一意になるようにタイムスタンプを入れる．
+        val photoFile = File(
+            outputDirectory,
+            SimpleDateFormat(FILENAME_FORMAT, Locale.US).format(System.currentTimeMillis()) + ".jpg"
+        )
+
+        // OutputFileOptionsオブジェクトを生成．
+        // これは，出力をどのようにしたいかを指定することができる．
+        // 先ほど作成したファイルに出力を保存したいので，photoFileを渡す．
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
+        // 写真を撮影した後に呼ばれるリスナの設定．
+        imageCapture.takePicture(
+            outputOptions, ContextCompat.getMainExecutor(this), object : ImageCapture.OnImageSavedCallback {
+                override fun onError(exc: ImageCaptureException) {
+                    Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
+                }
+
+                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    val savedUri = Uri.fromFile(photoFile)
+                    val msg = "Photo capture succeeded: $savedUri"
+                    Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
+                    Log.d(TAG, msg)
+                }
+            }
+        )
+    }
 
     // 写真のプレビューにビューファインダーを使用する．
     // ビューファインダーはCameraXのPreviewクラスを使って実装できる．
@@ -103,6 +142,10 @@ class MainActivity : AppCompatActivity() {
                     preview.setSurfaceProvider(binding.viewFinder.surfaceProvider)
                 }
 
+            // ImageCaptureオブジェクトを初期化．
+            imageCapture = ImageCapture.Builder()
+                .build()
+
             // CameraSelectorを生成．
             // DEFAULT_BACK_CAMERAを選択．
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
@@ -113,7 +156,7 @@ class MainActivity : AppCompatActivity() {
 
                 // cameraSelectorとpreviewをcameraProviderにバインドする．
                 cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview)
+                    this, cameraSelector, preview, imageCapture)
 
             } catch(exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
