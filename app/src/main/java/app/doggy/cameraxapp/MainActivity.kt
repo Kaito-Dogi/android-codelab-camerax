@@ -4,8 +4,12 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
+import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import app.doggy.cameraxapp.databinding.ActivityMainBinding
@@ -15,7 +19,7 @@ import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
 
-    // bindingクラスを宣言
+    // Bindingクラスを宣言．
     private lateinit var binding: ActivityMainBinding
 
     private var imageCapture: ImageCapture? = null
@@ -28,7 +32,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Request camera permissions
+        // カメラのパーミッションを要求する．
         if (allPermissionsGranted()) {
             startCamera()
         } else {
@@ -37,7 +41,7 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        // Set up the listener for take photo button
+        // cameraCaptureButtonをクリックした時の処理．
         binding.cameraCaptureButton.setOnClickListener { takePhoto() }
 
         outputDirectory = getOutputDirectory()
@@ -52,7 +56,8 @@ class MainActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        // Check if the request code is correct; ignore it otherwise.
+        // requestCodeが正しいか確認する．
+        // そうでなければ無視する．
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
                 startCamera()
@@ -69,9 +74,54 @@ class MainActivity : AppCompatActivity() {
 
     private fun takePhoto() {}
 
-    private fun startCamera() {}
+    // 写真のプレビューにビューファインダーを使用する．
+    // ビューファインダーはCameraXのPreviewクラスを使って実装できる．
+    // プレビューを使用するには，まず構成を定義する．
+    // 構成は，ユースケースのインスタンスを作成するために使用される．
+    // 作成されたインスタンスはCameraXのライフサイクルにバインドされる．
+    private fun startCamera() {
 
-    //パーミッションが
+        // ProcessCameraProviderのインスタンスを作成．
+        // これはカメラのライフサイクルをLifecycleOwnerにバインドするために使用する．
+        // これによってCameraXはライフサイクルを認識しているため，カメラを開始・終了する作業が不要になる．
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+
+        // cameraProviderFutureにリスナーを追加．
+        // 第1引数にRunnableを渡す．これは後で記入する．
+        // 第2引数にContextCompat.getMainExecutor()を渡す．これはメインスレッドで実行されるExecutorを返す．
+        cameraProviderFuture.addListener(Runnable {
+
+            // カメラのライフサイクルをLifecycleOwnerにバインドするために使用する．
+            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
+
+            // Previewオブジェクトを初期化．
+            // viewFinderからsurfaceProviderを取得し，それをPreviewオブジェクトに設定．
+            val preview = Preview.Builder()
+                .build()
+                .also { preview: Preview ->
+                    preview.setSurfaceProvider(binding.viewFinder.surfaceProvider)
+                }
+
+            // CameraSelectorを生成．
+            // DEFAULT_BACK_CAMERAを選択．
+            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+            try {
+                // cameraProviderに何もバインドされていないことを確認．
+                cameraProvider.unbindAll()
+
+                // cameraSelectorとpreviewをcameraProviderにバインドする．
+                cameraProvider.bindToLifecycle(
+                    this, cameraSelector, preview)
+
+            } catch(exc: Exception) {
+                Log.e(TAG, "Use case binding failed", exc)
+            }
+
+        }, ContextCompat.getMainExecutor(this))
+    }
+
+    // パーミッションが得られているか確認．
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(
             baseContext, it
